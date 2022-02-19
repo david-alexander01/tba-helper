@@ -3,7 +3,13 @@ from tabulate import tabulate
 
 
 class FSM:
+
+
     def __init__(self, sts=None, sgm=None):
+        """
+        sts: tuples of states. sgm: tuples of alphabet, '^' will be considered as
+        epsilon.
+        """
         self.states = dict()
         if sts is not None:
             for s in sts:
@@ -64,7 +70,20 @@ class FSM:
             cur_names.add(c.name)
         return (cur_names & self.accepting_states) != set()
 
+    def dfsm_simulate(self, w):
+        st = self.states[self.initial_state]
+        for c in w:
+            st = self.states[st.next[c][0]]
+
+        return st in self.accepting_states
+
     def ndfsm_to_dfsm(self):
+        """Returns quintuple (K, Σ, δ, s, A) of tuples K, Σ, δ, A and string s.
+        K -> states.
+        Σ -> alphabet.
+        δ -> transition function.
+        s -> starting state.
+        A -> accepting states."""
         epsilons = dict()
         for s in self.states:
             epsilons[s] = self.eps(s)
@@ -104,8 +123,25 @@ class FSM:
                 continue
             data.append(data_row)
 
+        active_state_name = {tuple(x.name for x in y) for y in active_state}
+        new_acc_states = {
+            x for x in active_state_name if (set(x) & self.accepting_states != set())
+        }
+
+        new_init_state = self.state_tuple_to_string(start_tuple)
+
         print(tabulate(data, headers=["Active State"] + list(self.sigma)))
+        print("accepting states:", new_acc_states)
+        print("initial state:", new_init_state)
+
         # print(data)
+        return (
+            tuple(active_state_name),
+            self.sigma,
+            tuple(deltas),
+            new_init_state,
+            tuple(new_acc_states),
+        )
 
     def state_set_to_tuple(self, states):
         states = list(states)
