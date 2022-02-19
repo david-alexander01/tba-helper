@@ -43,4 +43,4 @@ nodeLanguageServer/**
 nodeLanguageServer.*/**
 dist/**
 
-test.py
+testing*.py
