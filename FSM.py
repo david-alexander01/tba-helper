@@ -3,8 +3,6 @@ from tabulate import tabulate
 
 
 class FSM:
-
-
     def __init__(self, sts=None, sgm=None):
         """
         sts: tuples of states. sgm: tuples of alphabet, '^' will be considered as
@@ -31,6 +29,7 @@ class FSM:
 
     def add_accepting(self, state):
         self.accepting_states.add(state)
+        self.states[state].accepting = True
 
     # add transition (next state) from s1 to s2
     def add_transition(self, s1, label, s2):
@@ -56,26 +55,27 @@ class FSM:
         return result
 
     def ndfsm_simulate(self, w):
-        current_state = self.eps(self.initial_state)
+        st = self.eps(self.initial_state)
+        st1 = set()
         for c in w:
-            next_state = set()
-            for q in current_state:
-                for p in q.next.values():
+            st1 = set()
+            for q in st:
+                if c in q.next:
+                    p = q.next[c]
                     for p_state in p:
-                        next_state.add(self.states[p_state])
-            current_state = next_state
-        cur_names = set()
-
-        for c in current_state:
-            cur_names.add(c.name)
-        return (cur_names & self.accepting_states) != set()
+                        st1 |= self.eps(p_state)
+            st = st1
+            if st == set():
+                break
+        acc_set = {self.states[x] for x in self.accepting_states}
+        return (st & acc_set) != set()
 
     def dfsm_simulate(self, w):
         st = self.states[self.initial_state]
         for c in w:
             st = self.states[st.next[c][0]]
-
-        return st in self.accepting_states
+        acc_set = {self.states[x] for x in self.accepting_states}
+        return st in acc_set
 
     def ndfsm_to_dfsm(self):
         """Returns quintuple (K, Σ, δ, s, A) of tuples K, Σ, δ, A and string s.
@@ -185,6 +185,7 @@ def main():
 
     # a.ndfsm_to_dfsm()
 
+    # visualization of b: https://prnt.sc/Zf3bA5kSKkvL
     b = FSM(sts=(1, 2, 3, 4, 5, 6, 7, 8), sgm=("a", "b", "c"))
     b.add_transition(1, "b", 1)
     b.add_transition(1, "^", 2)
