@@ -155,8 +155,8 @@ class FSM:
         return ",".join(str(s.name) for s in states)
 
     def min_dfsm(self):
-        acc = tuple(sorted(list(self.accepting_states)))
-        k_min_acc = tuple(sorted(list(self.states.keys() - self.accepting_states)))
+        acc = list(sorted(list(self.accepting_states)))
+        k_min_acc = list(sorted(list(self.states.keys() - self.accepting_states)))
         classes = [acc, k_min_acc]
         step = 1
         while True:
