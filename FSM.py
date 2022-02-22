@@ -154,6 +154,58 @@ class FSM:
             return "{}"
         return ",".join(str(s.name) for s in states)
 
+    def min_dfsm(self):
+        acc = tuple(sorted(list(self.accepting_states)))
+        k_min_acc = tuple(sorted(list(self.states.keys() - self.accepting_states)))
+        classes = [acc, k_min_acc]
+        step = 1
+        while True:
+            print("Step", step)
+            print("classes:", classes)
+            step += 1
+            new_classes = []
+            to_tabulate = []
+            for e in classes:
+                outputs = []
+                for q in e:
+                    e_output = []
+                    for c in self.sigma:
+                        e_output.append(((q, c), self.get_next_class(q, c, classes)))
+                    outputs.append(e_output)
+                    tmp_to_tabulate = [q]
+                    for i in range(len(self.sigma)):
+                        tmp_to_tabulate.append(e_output[i][1])
+                    to_tabulate.append(tmp_to_tabulate)
+                to_tabulate.append(["-"] * (len(self.sigma) + 1))
+                new_classes.extend(self.get_new_classes(outputs))
+            print(tabulate(to_tabulate, headers=["State"] + list(self.sigma)))
+            if classes == new_classes:
+                break
+            classes = new_classes
+
+    def get_next_class(self, s, c, classes):
+        state = self.states[s]
+        next_state = state.next[c][0]
+        for next_class in classes:
+            if next_state in next_class:
+                return next_class
+        raise Exception("No class found")
+
+    def get_new_classes(self, outputs):
+        new_classes = []
+        equivalence_class = []
+        for item in outputs:
+            item_output = []
+            for i in range(len(self.sigma)):
+                item_output.append(item[i][1])
+            if item_output in equivalence_class:
+                idx = equivalence_class.index(item_output)
+                new_classes[idx].append(item[0][0][0])
+            else:
+                equivalence_class.append(item_output)
+                new_classes.append([item[0][0][0]])
+        return new_classes
+
 
 class State:
     def __init__(self, name):
@@ -163,28 +215,35 @@ class State:
 
 
 def main():
-    a = FSM()
-    a.add_state(0)
-    a.add_state(1)
-    a.add_state(2)
-    a.add_state(3)
+    # minimize dfsm demo
+    # visualization of a: https://prnt.sc/sRIxEdmVPSr9
+    a = FSM(sts=(1, 2, 3, 4, 5, 6), sgm=("a", "b"))
+    a.add_transition(1, "a", 2)
+    a.add_transition(1, "b", 4)
 
-    a.set_initial(0)
+    a.add_transition(2, "a", 3)
+    a.add_transition(2, "b", 6)
+
+    a.add_transition(3, "a", 2)
+    a.add_transition(3, "b", 4)
+
+    a.add_transition(4, "a", 6)
+    a.add_transition(4, "b", 5)
+
+    a.add_transition(5, "a", 2)
+    a.add_transition(5, "b", 4)
+
+    a.add_transition(6, "a", 6)
+    a.add_transition(6, "b", 6)
+
     a.add_accepting(2)
+    a.add_accepting(4)
 
-    a.add_transition(0, "a", 3)
-    a.add_transition(0, "^", 1)
+    a.set_initial(1)
 
-    a.add_transition(1, "a", 0)
-    a.add_transition(1, "b", 2)
-    a.add_transition(1, "^", 2)
+    a.min_dfsm()
 
-    a.add_transition(2, "^", 0)
-
-    a.add_transition(3, "b", 2)
-
-    # a.ndfsm_to_dfsm()
-
+    # convert ndfsm to dfsm demo
     # visualization of b: https://prnt.sc/Zf3bA5kSKkvL
     b = FSM(sts=(1, 2, 3, 4, 5, 6, 7, 8), sgm=("a", "b", "c"))
     b.add_transition(1, "b", 1)
@@ -212,7 +271,7 @@ def main():
     b.set_initial(1)
     b.add_accepting(8)
 
-    b.ndfsm_to_dfsm()
+    # b.ndfsm_to_dfsm()
 
 
 def print_eps(e):
