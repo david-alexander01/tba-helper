@@ -55,6 +55,7 @@ class FSM:
         return result
 
     def ndfsm_simulate(self, w):
+        print("\nNDSFM Simulate")
         st = self.eps(self.initial_state)
         st1 = set()
         for c in w:
@@ -71,6 +72,7 @@ class FSM:
         return (st & acc_set) != set()
 
     def dfsm_simulate(self, w):
+        print("\nDFSM Simulate")
         st = self.states[self.initial_state]
         for c in w:
             st = self.states[st.next[c][0]]
@@ -84,6 +86,7 @@ class FSM:
         δ -> transition function.
         s -> starting state.
         A -> accepting states."""
+        print("\nNDFSM to DFSM")
         epsilons = dict()
         for s in self.states:
             epsilons[s] = self.eps(s)
@@ -155,6 +158,7 @@ class FSM:
         return ",".join(str(s.name) for s in states)
 
     def min_dfsm(self):
+        print("\nMinimize DFSM")
         acc = list(sorted(list(self.accepting_states)))
         k_min_acc = list(sorted(list(self.states.keys() - self.accepting_states)))
         classes = [acc, k_min_acc]
@@ -205,6 +209,134 @@ class FSM:
                 equivalence_class.append(item_output)
                 new_classes.append([item[0][0][0]])
         return new_classes
+
+    def ndfsm_to_regex(self):
+        """Returns string of regular expression from rip states.
+        Please make sure the ndfsm fulfills the precondition.
+        Initial state should be named init and final state should be
+        named acc.
+        WARNING: HAVE NOT BEEN THOROUGHLY TESTED, USE WITH CAUTION
+        """
+        print("\nNDFSM TO REGEX")
+        regex = ""
+
+        cur_states = list(self.states.keys())
+        to_tabulate = self.create_transition_table()
+        cols = cur_states.copy()
+        cols.remove("init")
+        header = ["State"] + cols
+        print(tabulate(to_tabulate, headers=header))
+        print("\n")
+
+        while len(to_tabulate) > 1:
+            encodings = dict(enumerate(cols[:-1], 1))
+            encodings = {str(k): str(v) for k, v in encodings.items()}
+            print("Rip state (", end="")
+            print(", ".join(":".join(_) for _ in encodings.items()), end="")
+            print("): ", end="")
+            to_rip = input()
+            state_to_rip = encodings[to_rip]
+            new_cols = cols.copy()
+            new_cols.remove(state_to_rip)
+
+            col_indexes = dict()
+            for i in range(1, len(header)):
+                col_indexes[header[i]] = i
+
+            ripped_row = []
+            for row in to_tabulate:
+                if row[0] == state_to_rip:
+                    ripped_row = row
+                    break
+
+            to_tabulate = [None] + to_tabulate  # convert to one-based indexing
+            new_table = []
+
+            ripped_loop = ripped_row[col_indexes[state_to_rip]]
+            if ripped_loop != "∅":
+                ripped_loop = "(" + ripped_loop + ")*"
+            else:
+                ripped_loop = ""
+
+            for i in range(1, len(to_tabulate)):
+                label = to_tabulate[i][0]
+                if label == state_to_rip:
+                    continue
+                cur_row = to_tabulate[i]
+                new_row = [label] + ["."] * (len(to_tabulate[i]) - 2)
+
+                idx = 0
+                for j in range(len(cols)):
+                    if cols[j] == state_to_rip:
+                        continue
+                    idx += 1
+
+                    this_to_dest = cur_row[col_indexes[cols[j]]]
+
+                    this_to_ripped = cur_row[col_indexes[state_to_rip]]
+                    ripped_to_dest = ripped_row[col_indexes[cols[j]]]
+
+                    if this_to_dest != "∅":
+                        if len(this_to_dest) > 1:
+                            this_to_dest = "(" + this_to_dest + ")"
+                    else:
+                        this_to_dest = ""
+
+                    if this_to_ripped == "∅" or ripped_to_dest == "∅":
+                        new_row[idx] = this_to_dest if this_to_dest != "" else "∅"
+                        continue
+
+                    temp_regex = this_to_dest + "U" if this_to_dest != "" else ""
+
+                    if this_to_ripped == "^":
+                        this_to_ripped = ""
+                    else:
+                        if len(this_to_ripped) > 1:
+                            this_to_ripped = f"({this_to_ripped})"
+
+                    if ripped_to_dest == "^":
+                        ripped_to_dest = ""
+                    else:
+                        if len(ripped_to_dest) > 1:
+                            ripped_to_dest = f"({ripped_to_dest})"
+
+                    temp_regex += f"({this_to_ripped}{ripped_loop}{ripped_to_dest})"
+                    new_row[idx] = temp_regex
+
+                pass
+                new_table.append(new_row)
+
+            to_tabulate = new_table
+
+            cols = new_cols
+            header = ["State"] + cols
+            print(tabulate(to_tabulate, headers=header))
+            print("\n")
+
+    def create_transition_table(self):
+        cur_states = list(self.states.keys())
+
+        table = []
+        cols = cur_states.copy()
+        cols.remove("init")
+        for s in cur_states:
+            if s == "acc":
+                continue
+            cur_row = []
+            cur_row.append(s)
+            st = self.states.get(s)
+            for next_s in cols:
+                ans = ""
+                for k, v in st.next.items():
+                    if next_s in v:
+                        ans += k + "U"
+                if ans == "":
+                    ans = "∅"
+                else:
+                    ans = ans[:-1]
+                cur_row.append(ans)
+            table.append(cur_row)
+        return table
 
 
 class State:
@@ -271,7 +403,39 @@ def main():
     b.set_initial(1)
     b.add_accepting(8)
 
-    # b.ndfsm_to_dfsm()
+    b.ndfsm_to_dfsm()
+
+    # convert ndfsm to regex demo
+    # https://docs.google.com/spreadsheets/d/1Esfdl43IZ9DZb-F0cFK4ZkthGIqfWfHlqPPFqjTdG_E/edit#gid=0
+    # q5 -> acc
+    c = FSM(sts=("init", "A", "B", "C", "D", "acc"), sgm=("a", "b", "c"))
+
+    c.set_initial("init")
+    c.add_accepting("acc")
+
+    c.add_transition("init", "^", "A")
+
+    c.add_transition("A", "a", "B")
+    c.add_transition("A", "b", "A")
+    c.add_transition("A", "c", "A")
+    c.add_transition("A", "^", "acc")
+
+    c.add_transition("B", "a", "B")
+    c.add_transition("B", "b", "D")
+    c.add_transition("B", "c", "A")
+    c.add_transition("B", "^", "acc")
+
+    c.add_transition("C", "b", "A")
+    c.add_transition("C", "c", "A")
+    c.add_transition("C", "^", "acc")
+
+    c.add_transition("D", "a", "B")
+    c.add_transition("D", "b", "A")
+    c.add_transition("D", "c", "C")
+    c.add_transition("D", "^", "acc")
+
+    c.ndfsm_to_regex()
+    # input 3, 3, 2, 1 to rip state C, D, B, then A
 
 
 def print_eps(e):
