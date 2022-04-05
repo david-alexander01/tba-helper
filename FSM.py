@@ -254,7 +254,10 @@ class FSM:
 
             ripped_loop = ripped_row[col_indexes[state_to_rip]]
             if ripped_loop != "∅":
-                ripped_loop = "(" + ripped_loop + ")*"
+                if "U" in ripped_loop:
+                    ripped_loop = "(" + ripped_loop + ")*"
+                else:
+                    ripped_loop = ripped_loop + "*"
             else:
                 ripped_loop = ""
 
@@ -277,7 +280,7 @@ class FSM:
                     ripped_to_dest = ripped_row[col_indexes[cols[j]]]
 
                     if this_to_dest != "∅":
-                        if len(this_to_dest) > 1:
+                        if len(this_to_dest) > 1 and this_to_dest.count("U") > 1:
                             this_to_dest = "(" + this_to_dest + ")"
                     else:
                         this_to_dest = ""
@@ -286,21 +289,35 @@ class FSM:
                         new_row[idx] = this_to_dest if this_to_dest != "" else "∅"
                         continue
 
-                    temp_regex = this_to_dest + "U" if this_to_dest != "" else ""
+                    temp_regex = (
+                        "(" + this_to_dest + ")U"
+                        if this_to_dest != "" and "U" in this_to_dest
+                        else this_to_dest + "U"
+                        if this_to_dest != ""
+                        else ""
+                    )
 
                     if this_to_ripped == "^":
                         this_to_ripped = ""
                     else:
-                        if len(this_to_ripped) > 1:
+                        if len(this_to_ripped) > 1 and this_to_ripped.count("U"):
                             this_to_ripped = f"({this_to_ripped})"
 
                     if ripped_to_dest == "^":
                         ripped_to_dest = ""
                     else:
-                        if len(ripped_to_dest) > 1:
+                        if len(ripped_to_dest) > 1 and ripped_to_dest.count("U"):
                             ripped_to_dest = f"({ripped_to_dest})"
 
-                    temp_regex += f"({this_to_ripped}{ripped_loop}{ripped_to_dest})"
+                    this_to_ripped_to_dest = (
+                        f"{this_to_ripped}{ripped_loop}{ripped_to_dest}"
+                    )
+
+                    if "U" in this_to_ripped_to_dest and temp_regex != "":
+                        temp_regex += "(" + this_to_ripped_to_dest + ")"
+                    else:
+                        temp_regex += this_to_ripped_to_dest
+
                     new_row[idx] = temp_regex
 
                 pass
